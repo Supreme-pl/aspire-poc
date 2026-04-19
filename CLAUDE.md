@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repo status
 
-Phase 1 skeleton in place: AppHost + ServiceDefaults + App1 + App2 scaffolded, `AspirePoc.slnx` builds clean. No infra resources, no business logic, no frontend, no tests yet.
+Phase 2 complete: AppHost graph wires up Redis (`cache`) and Redpanda (`redpanda`) alongside app1 and app2. App1 is referenced to `cache` and receives both the Redis connection string and Kafka bootstrap env var; app2 receives the Kafka bootstrap env var only. Apps currently just log their wiring on startup — no actual Redis client or Kafka producer/consumer in use yet. `AspirePoc.slnx` builds clean. No business logic, no frontend, no tests yet.
 
 ## Build and run
 
@@ -16,6 +16,18 @@ dotnet run --project apphost/src
 Running the AppHost prints a dashboard URL (http://localhost:17xxx) and a login token in the console. Open the URL, paste the token, and you see the resource graph, logs, traces, and metrics.
 
 Solution format is the new XML-based `.slnx` (not legacy `.sln`). `dotnet` CLI handles it natively.
+
+### First-time local setup
+
+The Aspire dashboard's OTLP ingest endpoint runs over HTTPS with the .NET dev cert. If the cert is not trusted, child apps silently fail to export telemetry — HTTP endpoints still respond, but the Traces/Metrics/Structured logs tabs stay empty. Fix once per machine:
+
+```bash
+dotnet dev-certs https --trust
+```
+
+### Local infra requirements
+
+Redpanda is declared with `AddContainer` (per architect plan) pinned to `redpandadata/redpanda:v24.2.4` and binds host port **9092** for Kafka. Redis uses the Aspire-managed container. Docker must be running. If port 9092 is already in use, AppHost fails to start the Redpanda container — free the port or change the binding in `AppHost.cs`.
 
 ## What this is
 
