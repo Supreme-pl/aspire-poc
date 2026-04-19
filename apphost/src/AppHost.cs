@@ -11,6 +11,8 @@ var kafka = builder.AddContainer("redpanda", "redpandadata/redpanda", "v24.2.4")
         "--advertise-kafka-addr", "localhost:9092")
     .WithEndpoint(port: 9092, targetPort: 9092, name: "kafka");
 
+var referenceService = builder.AddProject<Projects.AspirePoc_ReferenceService>("reference-service");
+
 var app1 = builder.AddProject<Projects.AspirePoc_App1>("app1")
     .WithReference(cache)
     .WaitFor(cache)

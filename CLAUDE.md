@@ -4,7 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repo status
 
-Phase 2 complete: AppHost graph wires up Redis (`cache`) and Redpanda (`redpanda`) alongside app1 and app2. App1 is referenced to `cache` and receives both the Redis connection string and Kafka bootstrap env var; app2 receives the Kafka bootstrap env var only. Apps currently just log their wiring on startup — no actual Redis client or Kafka producer/consumer in use yet. `AspirePoc.slnx` builds clean. No business logic, no frontend, no tests yet.
+Phase 3a complete: `AspirePoc.ReferenceService` project scaffolded — minimal API serving customer master data from a bundled `customers.json` fixture, exposing `GET /customers/{id}`. Wired into AppHost as the `reference-service` resource. Not yet consumed by app1 — that happens in Phase 3b.
+
+Previous phases: AppHost graph has Redis (`cache`) and Redpanda (`redpanda`) containers plus app1 (referenced to cache, receives Kafka bootstrap env var) and app2 (receives Kafka bootstrap env var). Apps log their wiring on startup but do not yet use Redis client or Kafka producer/consumer.
+
+`AspirePoc.slnx` builds clean. No frontend, no tests, no real business logic yet.
 
 ## Build and run
 
@@ -69,24 +73,26 @@ Redis caches reference data (e.g. `customer:C-123` → customer master), not pro
 
 ## Folder layout
 
-Current (Phase 1):
+Current:
 ```
 aspire-poc/
 ├── AspirePoc.slnx
 ├── CLAUDE.md
 ├── plan_from_gpt.md
-├── apphost/src/           AspirePoc.AppHost (Aspire.AppHost.Sdk)
-├── service-defaults/src/  AspirePoc.ServiceDefaults (shared OTel, health, service discovery)
-├── app1/src/              AspirePoc.App1 (ASP.NET Core empty)
-└── app2/src/              AspirePoc.App2 (ASP.NET Core empty)
+├── apphost/src/            AspirePoc.AppHost (Aspire.AppHost.Sdk)
+├── service-defaults/src/   AspirePoc.ServiceDefaults (shared OTel, health, service discovery)
+├── app1/src/               AspirePoc.App1 (ASP.NET Core empty)
+├── app2/src/               AspirePoc.App2 (ASP.NET Core empty)
+└── reference-service/src/  AspirePoc.ReferenceService (customer master data fixture + API)
 ```
 
 Planned additions (later phases):
-- `reference-service/src/` — mock source of truth for reference data
 - `producer/src/` — mock producer pushing synthetic batches to app1 on interval
 - `frontend/src/` — Angular + TypeScript
 - `integration-tests/src/` + `integration-tests/fixtures/`
 - `app1/tests/`, `app2/tests/`, `reference-service/tests/` — per-project unit tests
+
+**No shared-code project.** Domain types needed by both app1 and app2 (e.g. `Money`, transaction DTOs) are duplicated in each app rather than extracted — this mirrors the real-world scenario where the two apps live in separate repos. `ServiceDefaults` and `ReferenceService` are shared infrastructure and do not fall under this rule.
 
 Project name convention: `AspirePoc.<Component>`. The generated `Projects.AspirePoc_App1` type (used in `AppHost.cs` as `builder.AddProject<Projects.AspirePoc_App1>("app1")`) is produced automatically by the Aspire SDK from the AppHost's `<ProjectReference>` — dots in project names become underscores in the generated type.
 

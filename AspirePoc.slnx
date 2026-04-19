@@ -11,6 +11,10 @@
   <Folder Name="/apphost/src/">
     <Project Path="apphost/src/AspirePoc.AppHost.csproj" />
   </Folder>
+  <Folder Name="/reference-service/" />
+  <Folder Name="/reference-service/src/">
+    <Project Path="reference-service/src/AspirePoc.ReferenceService.csproj" />
+  </Folder>
   <Folder Name="/service-defaults/" />
   <Folder Name="/service-defaults/src/">
     <Project Path="service-defaults/src/AspirePoc.ServiceDefaults.csproj" />

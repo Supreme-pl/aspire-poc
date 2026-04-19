@@ -1,0 +1,7 @@
+[
+  { "id": "C-100", "name": "ACME Corp",           "country": "PL", "tier": "premium",  "discountRate": 0.15 },
+  { "id": "C-101", "name": "Globex Ltd",          "country": "GB", "tier": "standard", "discountRate": 0.05 },
+  { "id": "C-102", "name": "Initech",             "country": "US", "tier": "premium",  "discountRate": 0.20 },
+  { "id": "C-103", "name": "Umbrella Industries", "country": "DE", "tier": "basic",    "discountRate": 0.00 },
+  { "id": "C-104", "name": "Cyberdyne Systems",   "country": "JP", "tier": "premium",  "discountRate": 0.10 }
+]
