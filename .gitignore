@@ -1,0 +1,20 @@
+# Build results
+[Bb]in/
+[Oo]bj/
+TestResults/
+
+# IDEs / Visual Studio
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Mac / Windows
+.DS_Store
+Thumbs.db
+
+# Any node_modules if you have web frontend
+node_modules/

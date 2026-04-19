@@ -1,0 +1,16 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.2.2">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\app1\src\AspirePoc.App1.csproj" />
+    <ProjectReference Include="..\..\app2\src\AspirePoc.App2.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>33035c3d-74ba-4ab6-8f0e-3e09f85cdb5e</UserSecretsId>
+  </PropertyGroup>
+
+</Project>

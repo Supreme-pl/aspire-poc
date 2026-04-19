@@ -1,0 +1,18 @@
+<Solution>
+  <Folder Name="/app1/" />
+  <Folder Name="/app1/src/">
+    <Project Path="app1/src/AspirePoc.App1.csproj" />
+  </Folder>
+  <Folder Name="/app2/" />
+  <Folder Name="/app2/src/">
+    <Project Path="app2/src/AspirePoc.App2.csproj" />
+  </Folder>
+  <Folder Name="/apphost/" />
+  <Folder Name="/apphost/src/">
+    <Project Path="apphost/src/AspirePoc.AppHost.csproj" />
+  </Folder>
+  <Folder Name="/service-defaults/" />
+  <Folder Name="/service-defaults/src/">
+    <Project Path="service-defaults/src/AspirePoc.ServiceDefaults.csproj" />
+  </Folder>
+</Solution>
