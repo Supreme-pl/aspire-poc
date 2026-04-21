@@ -1,15 +1,33 @@
+using AspirePoc.App2;
+using Confluent.Kafka;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 
+builder.Services.AddSingleton<IConsumer<string, string>>(sp =>
+{
+    var config = new ConsumerConfig
+    {
+        BootstrapServers = builder.Configuration["Kafka:BootstrapServers"],
+        GroupId = "app2-consumer-group",
+        AutoOffsetReset = AutoOffsetReset.Earliest,
+        EnableAutoCommit = true
+    };
+    return new ConsumerBuilder<string, string>(config).Build();
+});
+
+builder.Services.AddSingleton<TransactionProcessor>();
+builder.Services.AddHostedService<KafkaConsumerService>();
+
 var app = builder.Build();
+
+var bootstrapServers = app.Configuration["Kafka:BootstrapServers"]
+    ?? throw new InvalidOperationException("Kafka:BootstrapServers is not configured");
+await KafkaTopicEnsurer.EnsureAsync(bootstrapServers, KafkaConsumerService.EnrichedTopic, app.Logger);
 
 app.MapDefaultEndpoints();
 
 app.MapGet("/hello", () => "app2 is alive");
-
-app.Logger.LogInformation(
-    "app2 wired with Kafka={Kafka}",
-    builder.Configuration["Kafka:BootstrapServers"]);
 
 app.Run();

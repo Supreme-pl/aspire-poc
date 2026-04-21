@@ -4,11 +4,42 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repo status
 
-Phase 3a complete: `AspirePoc.ReferenceService` project scaffolded — minimal API serving customer master data from a bundled `customers.json` fixture, exposing `GET /customers/{id}`. Wired into AppHost as the `reference-service` resource. Not yet consumed by app1 — that happens in Phase 3b.
+Phase 3c complete: app2 is now a Kafka consumer closing the ETL loop.
 
-Previous phases: AppHost graph has Redis (`cache`) and Redpanda (`redpanda`) containers plus app1 (referenced to cache, receives Kafka bootstrap env var) and app2 (receives Kafka bootstrap env var). Apps log their wiring on startup but do not yet use Redis client or Kafka producer/consumer.
+- `KafkaConsumerService` (BackgroundService) subscribes to `transactions.enriched`, reads messages with `AutoOffsetReset.Earliest` so restarts replay the topic from the beginning
+- Deserializes each `EnrichedTransaction`, hands it to `TransactionProcessor`
+- `TransactionProcessor` wraps incoming `decimal Amount` + `string Currency` into a `Money` value object, applies the discount with banker's rounding (`Math.Round(..., 2, MidpointRounding.ToEven)`), formats all numeric fields with `CultureInfo.InvariantCulture`, and appends a row to the CSV output
+- CSV output path resolution: `Output:Path` from config, else `{Path.GetTempPath()}/aspire-poc/transactions.csv`. Full path is logged at startup
+- CSV header written on first write when the file does not exist
+- Per-record string fields are CSV-escaped (quotes + embedded comma/quote/newline handling)
+- Consumer group is fixed at `app2-consumer-group` (will need uniquing per integration test run in a later phase)
+- Both apps call `KafkaTopicEnsurer.EnsureAsync` at startup to idempotently create `transactions.enriched` before producer/consumer initialize. The helper is **duplicated** in app1 and app2 per the no-shared rule. The fix addresses the librdkafka behavior where `topic.metadata.refresh.interval.ms` defaults to 5 minutes — without pre-creation, a consumer that subscribes before the topic exists would not discover it for up to 5 minutes after it's created by the producer's first write.
+- The CSV output file at `{Path.GetTempPath()}/aspire-poc/transactions.csv` is **deleted on app2 startup** so each AppHost run produces a clean file. The file is not managed by Aspire (it lives outside the container graph), so without this, rows accumulate across runs. Intentional truncation avoids cross-run confusion during demo.
 
-`AspirePoc.slnx` builds clean. No frontend, no tests, no real business logic yet.
+### Development GUIs
+
+Two visual tools are wired into the AppHost for local inspection:
+
+- **RedisInsight** — added via `AddRedis("cache").WithRedisInsight()`. Aspire handles the wiring; the UI resource points at the `cache` Redis instance automatically. Use it to browse keys (`customer:C-100`, etc.) and inspect values.
+- **Redpanda Console** — added as a raw `AddContainer` for `redpandadata/console:v2.7.0`. Connects to Redpanda via the **internal listener** `redpanda:9093` — Aspire creates a Docker network DNS alias matching each resource name, so the Console resolves `redpanda` to the Redpanda container within the shared network. Use it to browse topics, inspect messages, and watch consumer group lag in real time.
+
+Redpanda is configured with **two Kafka listeners**:
+- `external` on host port 9092 advertised as `localhost:9092` — for apps running on the host
+- `internal` on 9093 advertised as `redpanda:9093` — for container-to-container traffic (Console, future producers/consumers running as containers)
+
+This split is the standard Kafka networking pattern. Clients initiating via one listener receive metadata referring to *that listener's* advertised address, so there's no cross-network confusion. Without this split, a single advertised address (e.g. `localhost:9092`) works for one client class but breaks the other.
+
+Both open via their endpoints in the Aspire dashboard's Resources tab.
+
+### Known observability gap
+
+`Confluent.Kafka` 2.14 does not emit OpenTelemetry spans by default for produce/consume calls, so the Kafka hops between app1 and app2 do **not** appear in the dashboard's Traces tab. The trace starts at `POST /process` on app1 and ends at the last Redis/HTTP span. app2's message processing generates its own separate traces keyed on the consume call. Closing the trace continuity across Kafka requires either the `OpenTelemetry.Instrumentation.ConfluentKafka` package or manual `ActivitySource` wiring in the producer and consumer — not addressed in current phases.
+
+`Money` and `EnrichedTransaction` are **duplicated** between app1 and app2 by design — see the "No shared-code project" note in the Folder layout section. Keep the two copies in sync manually when either shape changes.
+
+AppHost: both `app1` and `app2` now `WaitFor(kafka)` so they start after the Redpanda container reports running. This does not guarantee Kafka is accepting connections at that instant — the Confluent clients retry internally, which handles the remaining race.
+
+Previous phases: app1 enrichment with cache-aside (3b), reference-service fixture API (3a), Redpanda + Redis in AppHost (2), project scaffolding (1). `AspirePoc.slnx` builds clean. No producer service yet, no frontend, no tests.
 
 ## Build and run
 
@@ -41,10 +72,16 @@ A .NET Aspire POC demonstrating a streaming ETL pipeline. Goal is to showcase As
 
 `plan_from_gpt.md` captures the intent of the project architect (not AI suggestions). Technology choices documented there (Redpanda, Redis, GHCR if used, `/process` endpoint pattern, image pinning, etc.) are approved decisions — do not propose replacements without the user asking. The Jira ticket (ALCO-60) is intentionally terse; `plan_from_gpt.md` takes precedence over it.
 
-Deviations from `plan_from_gpt.md` agreed with the user so far:
-- **Monorepo layout** instead of three separate repos (this repo is the single location).
-- **Mock producer service** replaces the literal "file drop" Extract step — treated as an interpretation of the architect's `/process` endpoint trigger, pending architect confirmation.
-- **Mock reference service** added as the source of truth for reference data (matches the architect's "stubbed dependency" note).
+Deviations from `plan_from_gpt.md` agreed with the user so far. Each row notes source lineage and whether the architect has confirmed:
+
+| Deviation | Lineage | Architect confirmed? |
+|---|---|---|
+| **Monorepo layout** (one repo, folders for each app) instead of three repos | User decision, explicit | No — user intends to discuss, but this is a user preference for POC speed |
+| **Mock producer** replaces literal "file drop" Extract step | Interpretation of plan's `/process` endpoint trigger clause | **No — pending** |
+| **Mock reference-service** as the "stubbed dependency" | Plan says "any stubbed dependency needed for reference-data enrichment"; interpreted as a separate HTTP service rather than bundled fixture or Redis-preload | **No — pending** |
+| **Redis cache** for reference-data lookup (cache-aside) | Not in plan body. Sourced from the Jira ticket appended to `plan_from_gpt.md`: *"Consider Redis cache in 1 of APIs"*. Tacitly accepted through design conversation | **No — pending** |
+
+**Important:** items 2-4 above were derived during conversation, not directly from the plan body. They should be explicitly reviewed with the architect before the POC is presented as "what the plan said". If the architect's intent was something different (e.g. reference data baked into Redis on startup, or into app1 as a bundled fixture), the architecture collapses accordingly and reference-service + cache-aside can be removed.
 
 ## Target architecture
 
