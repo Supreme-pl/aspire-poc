@@ -1,5 +1,10 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
+var topic = builder.Configuration["Kafka:Topic"] ?? "transactions.enriched";
+var consumerGroup = builder.Configuration["Kafka:ConsumerGroup"] ?? "app2-consumer-group";
+var outputPath = builder.Configuration["Output:Path"];
+var producerEnabled = !string.Equals(builder.Configuration["Producer:Enabled"], "false", StringComparison.OrdinalIgnoreCase);
+
 var cache = builder.AddRedis("cache")
     .WithRedisInsight();
 
@@ -25,14 +30,25 @@ var app1 = builder.AddProject<Projects.AspirePoc_App1>("app1")
     .WaitFor(cache)
     .WaitFor(kafka)
     .WaitFor(referenceService)
-    .WithEnvironment("Kafka__BootstrapServers", "localhost:9092");
+    .WithEnvironment("Kafka__BootstrapServers", "localhost:9092")
+    .WithEnvironment("Kafka__Topic", topic);
 
 var app2 = builder.AddProject<Projects.AspirePoc_App2>("app2")
     .WaitFor(kafka)
-    .WithEnvironment("Kafka__BootstrapServers", "localhost:9092");
+    .WithEnvironment("Kafka__BootstrapServers", "localhost:9092")
+    .WithEnvironment("Kafka__Topic", topic)
+    .WithEnvironment("Kafka__ConsumerGroup", consumerGroup);
 
-var producer = builder.AddProject<Projects.AspirePoc_Producer>("producer")
-    .WithReference(app1)
-    .WaitFor(app1);
+if (!string.IsNullOrEmpty(outputPath))
+{
+    app2.WithEnvironment("Output__Path", outputPath);
+}
+
+if (producerEnabled)
+{
+    builder.AddProject<Projects.AspirePoc_Producer>("producer")
+        .WithReference(app1)
+        .WaitFor(app1);
+}
 
 builder.Build().Run();

@@ -28,7 +28,8 @@ var app = builder.Build();
 
 var bootstrapServers = app.Configuration["Kafka:BootstrapServers"]
     ?? throw new InvalidOperationException("Kafka:BootstrapServers is not configured");
-await KafkaTopicEnsurer.EnsureAsync(bootstrapServers, EnrichmentHandler.EnrichedTopic, app.Logger);
+var topic = app.Configuration["Kafka:Topic"] ?? EnrichmentHandler.DefaultTopic;
+await KafkaTopicEnsurer.EnsureAsync(bootstrapServers, topic, app.Logger);
 
 app.MapDefaultEndpoints();
 

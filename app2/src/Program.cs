@@ -10,7 +10,7 @@ builder.Services.AddSingleton<IConsumer<string, string>>(sp =>
     var config = new ConsumerConfig
     {
         BootstrapServers = builder.Configuration["Kafka:BootstrapServers"],
-        GroupId = "app2-consumer-group",
+        GroupId = builder.Configuration["Kafka:ConsumerGroup"] ?? "app2-consumer-group",
         AutoOffsetReset = AutoOffsetReset.Earliest,
         EnableAutoCommit = true
     };
@@ -24,7 +24,8 @@ var app = builder.Build();
 
 var bootstrapServers = app.Configuration["Kafka:BootstrapServers"]
     ?? throw new InvalidOperationException("Kafka:BootstrapServers is not configured");
-await KafkaTopicEnsurer.EnsureAsync(bootstrapServers, KafkaConsumerService.EnrichedTopic, app.Logger);
+var topic = app.Configuration["Kafka:Topic"] ?? KafkaConsumerService.DefaultTopic;
+await KafkaTopicEnsurer.EnsureAsync(bootstrapServers, topic, app.Logger);
 
 app.MapDefaultEndpoints();
 

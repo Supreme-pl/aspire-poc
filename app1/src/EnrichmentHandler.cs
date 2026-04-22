@@ -5,22 +5,25 @@ namespace AspirePoc.App1;
 
 public sealed class EnrichmentHandler
 {
-    public const string EnrichedTopic = "transactions.enriched";
+    public const string DefaultTopic = "transactions.enriched";
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly CustomerLookup customers;
     private readonly IProducer<string, string> producer;
     private readonly ILogger<EnrichmentHandler> logger;
+    private readonly string topic;
 
     public EnrichmentHandler(
         CustomerLookup customers,
         IProducer<string, string> producer,
+        IConfiguration config,
         ILogger<EnrichmentHandler> logger)
     {
         this.customers = customers;
         this.producer = producer;
         this.logger = logger;
+        this.topic = config["Kafka:Topic"] ?? DefaultTopic;
     }
 
     public async Task<int> ProcessAsync(Batch batch, CancellationToken ct)
@@ -54,15 +57,16 @@ public sealed class EnrichmentHandler
                 Value = JsonSerializer.Serialize(enriched, JsonOptions)
             };
 
-            await producer.ProduceAsync(EnrichedTopic, message, ct);
+            await producer.ProduceAsync(topic, message, ct);
             published++;
         }
 
         logger.LogInformation(
-            "Batch {BatchId}: published {Published}/{Total} enriched events",
+            "Batch {BatchId}: published {Published}/{Total} enriched events to {Topic}",
             batch.BatchId,
             published,
-            batch.Transactions.Count);
+            batch.Transactions.Count,
+            topic);
 
         return published;
     }

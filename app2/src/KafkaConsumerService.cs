@@ -5,28 +5,31 @@ namespace AspirePoc.App2;
 
 public sealed class KafkaConsumerService : BackgroundService
 {
-    public const string EnrichedTopic = "transactions.enriched";
+    public const string DefaultTopic = "transactions.enriched";
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly IConsumer<string, string> consumer;
     private readonly TransactionProcessor processor;
     private readonly ILogger<KafkaConsumerService> logger;
+    private readonly string topic;
 
     public KafkaConsumerService(
         IConsumer<string, string> consumer,
         TransactionProcessor processor,
+        IConfiguration config,
         ILogger<KafkaConsumerService> logger)
     {
         this.consumer = consumer;
         this.processor = processor;
         this.logger = logger;
+        this.topic = config["Kafka:Topic"] ?? DefaultTopic;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        consumer.Subscribe(EnrichedTopic);
-        logger.LogInformation("Subscribed to topic {Topic}", EnrichedTopic);
+        consumer.Subscribe(topic);
+        logger.LogInformation("Subscribed to topic {Topic}", topic);
 
         try
         {

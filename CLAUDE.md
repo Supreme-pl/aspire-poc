@@ -4,7 +4,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repo status
 
-Phase 3d complete: the ETL now runs hands-off. `AspirePoc.Producer` is a .NET worker (`BackgroundService`) that generates synthetic batches on a `PeriodicTimer` and POSTs them to app1's `/process` endpoint. The graph self-drives — no manual curl needed.
+Phase 5 complete: one end-to-end integration test using `Aspire.Hosting.Testing`, spinning up the whole AppHost (Redis + RedisInsight + Redpanda + Redpanda Console + reference-service + app1 + app2) and asserting a known batch flows through the pipeline with correct discount calculation landing in a per-test-run CSV file. Producer is disabled in tests via `--Producer:Enabled=false`. Topic and consumer group are uniquified per run via `--Kafka:Topic` and `--Kafka:ConsumerGroup` args to prevent cross-test interference. Runtime ~20–90s depending on whether container images are already pulled.
+
+## Running tests
+
+```bash
+dotnet test integration-tests/src/AspirePoc.IntegrationTests.csproj
+```
+
+Configuration overrides are passed to `DistributedApplicationTestingBuilder.CreateAsync` as `string[] args` in `--Key=Value` form. This is the *only* reliable way to override config values — setting `appHost.Configuration[...]` after `CreateAsync` is too late because AppHost's Program.cs has already executed and built the resource graph with default values.
+
+Each test:
+- Creates a unique `runId` (8-char GUID)
+- Computes a unique temp output folder path
+- Passes `Kafka:Topic`, `Kafka:ConsumerGroup`, `Output:Path`, and `Producer:Enabled=false` as args
+- Waits for `app1` and `app2` resources to reach `Healthy` state via `app.ResourceNotifications.WaitForResourceHealthyAsync`
+- POSTs a test batch, polls the CSV file until expected lines appear (fixed timeout, no fixed sleeps per architect plan)
+
+AppHost was refactored to read these config keys and propagate them to child projects via `WithEnvironment`, and to conditionally add the producer only when enabled. Default values preserve the original "dotnet run" experience.
+
+## Previous phase status
+
+Phase 3d: the ETL runs hands-off. `AspirePoc.Producer` is a .NET worker (`BackgroundService`) that generates synthetic batches on a `PeriodicTimer` and POSTs them to app1's `/process` endpoint. The graph self-drives — no manual curl needed.
 
 - Producer resolves app1 via Aspire service discovery (`http://app1` → actual endpoint at runtime)
 - Customer pool is weighted toward `C-100`/`C-101` so cache hits are visible in the dashboard and Redpanda Console consumer-group lag; `C-999` shows up occasionally to keep the unknown-customer (skip-warn) path exercised
@@ -136,10 +157,24 @@ aspire-poc/
 ```
 
 Planned additions (later phases):
-- `producer/src/` — mock producer pushing synthetic batches to app1 on interval
-- `frontend/src/` — Angular + TypeScript
-- `integration-tests/src/` + `integration-tests/fixtures/`
-- `app1/tests/`, `app2/tests/`, `reference-service/tests/` — per-project unit tests
+- `integration-tests/src/` + `integration-tests/fixtures/` — Phase 5 (in progress)
+- `.github/workflows/aspire-poc.yml` — Phase 6 CI
+- `indexer/src/` — Phase 7, new Kafka consumer that indexes `transactions.enriched` into OpenSearch (see "OpenSearch integration" below)
+- `app1/tests/`, `app2/tests/`, `reference-service/tests/` — per-project unit tests (no date)
+
+**Frontend is no longer planned.** The Jira ticket suggested "Consider... frontend app as well to show Aspire features". Since the user applies the rule "do not use Jira as source of requirements" and the plan body never mentions a frontend, frontend work is cancelled.
+
+### OpenSearch integration (Phase 7, future)
+
+Once tests + CI are green, a new service will be added that consumes the `transactions.enriched` topic (different consumer group from `app2-consumer-group`, so both consumers run in parallel and independently) and indexes each event into OpenSearch. This sits alongside the CSV sink, not replacing it — demonstrates Aspire orchestrating a second Kafka consumer and shows the value of event streaming (fan-out to multiple sinks).
+
+- **Local dev**: OpenSearch container via `AddContainer("opensearch", "opensearchproject/opensearch:2.x")` with single-node discovery enabled
+- **Production**: AWS OpenSearch Service endpoint injected via env var (user will provision separately)
+- **Client**: `OpenSearch.Client` (official .NET SDK) or `OpenSearch.Net`
+- **New service name**: `AspirePoc.Indexer`
+- **What's indexed**: `EnrichedTransaction` payload with the computed `finalAmount` (so the index represents fully-processed transactions, not raw events). Alternative: index raw and let OpenSearch compute via runtime fields — to decide later.
+
+Same no-shared-code rule applies: the indexer gets its own copies of `EnrichedTransaction` and any calc logic it needs.
 
 **No shared-code project.** Domain types needed by both app1 and app2 (e.g. `Money`, transaction DTOs) are duplicated in each app rather than extracted — this mirrors the real-world scenario where the two apps live in separate repos. `ServiceDefaults` and `ReferenceService` are shared infrastructure and do not fall under this rule.
 
