@@ -15,7 +15,7 @@ var kafka = builder.AddContainer("redpanda", "redpandadata/redpanda", "v24.2.4")
         "--smp", "1",
         "--overprovisioned",
         "--kafka-addr", "internal://0.0.0.0:9093,external://0.0.0.0:9092",
-        "--advertise-kafka-addr", "internal://redpanda:9093,external://localhost:9092")
+        "--advertise-kafka-addr", "internal://redpanda:9093,external://127.0.0.1:9092")
     .WithEndpoint(port: 9092, targetPort: 9092, name: "kafka-external")
     .WithHttpEndpoint(targetPort: 9644, name: "admin")
     .WithHttpHealthCheck(path: "/v1/status/ready", endpointName: "admin");
@@ -33,12 +33,12 @@ var app1 = builder.AddProject<Projects.AspirePoc_App1>("app1")
     .WaitFor(cache)
     .WaitFor(kafka)
     .WaitFor(referenceService)
-    .WithEnvironment("Kafka__BootstrapServers", "localhost:9092")
+    .WithEnvironment("Kafka__BootstrapServers", "127.0.0.1:9092")
     .WithEnvironment("Kafka__Topic", topic);
 
 var app2 = builder.AddProject<Projects.AspirePoc_App2>("app2")
     .WaitFor(kafka)
-    .WithEnvironment("Kafka__BootstrapServers", "localhost:9092")
+    .WithEnvironment("Kafka__BootstrapServers", "127.0.0.1:9092")
     .WithEnvironment("Kafka__Topic", topic)
     .WithEnvironment("Kafka__ConsumerGroup", consumerGroup);
 

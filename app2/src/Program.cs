@@ -14,7 +14,9 @@ builder.Services.AddSingleton<IConsumer<string, string>>(sp =>
         AutoOffsetReset = AutoOffsetReset.Earliest,
         EnableAutoCommit = true
     };
-    return new ConsumerBuilder<string, string>(config).Build();
+    return new ConsumerBuilder<string, string>(config)
+        .SetLogHandler((_, _) => { })
+        .Build();
 });
 
 builder.Services.AddSingleton<TransactionProcessor>();

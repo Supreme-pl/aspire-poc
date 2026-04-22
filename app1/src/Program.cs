@@ -18,7 +18,9 @@ builder.Services.AddSingleton<IProducer<string, string>>(sp =>
         BootstrapServers = builder.Configuration["Kafka:BootstrapServers"],
         AllowAutoCreateTopics = true
     };
-    return new ProducerBuilder<string, string>(config).Build();
+    return new ProducerBuilder<string, string>(config)
+        .SetLogHandler((_, _) => { })
+        .Build();
 });
 
 builder.Services.AddSingleton<CustomerLookup>();

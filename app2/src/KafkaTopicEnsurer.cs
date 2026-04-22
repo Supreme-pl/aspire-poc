@@ -5,7 +5,7 @@ namespace AspirePoc.App2;
 
 public static class KafkaTopicEnsurer
 {
-    private const int MaxAttempts = 5;
+    private const int MaxAttempts = 30;
     private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(2);
 
     public static async Task EnsureAsync(
@@ -21,7 +21,9 @@ public static class KafkaTopicEnsurer
                 using var admin = new AdminClientBuilder(new AdminClientConfig
                 {
                     BootstrapServers = bootstrapServers
-                }).Build();
+                })
+                    .SetLogHandler((_, _) => { })
+                    .Build();
 
                 try
                 {
@@ -40,9 +42,12 @@ public static class KafkaTopicEnsurer
             }
             catch (Exception ex) when (attempt < MaxAttempts)
             {
-                logger.LogDebug(
-                    "Ensure topic attempt {Attempt}/{Max} failed: {Message}",
-                    attempt, MaxAttempts, ex.Message);
+                if (attempt == 1 || attempt % 5 == 0)
+                {
+                    logger.LogInformation(
+                        "Waiting for Kafka broker (attempt {Attempt}/{Max}): {Message}",
+                        attempt, MaxAttempts, ex.Message);
+                }
                 await Task.Delay(RetryDelay, ct);
             }
         }
