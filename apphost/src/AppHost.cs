@@ -31,4 +31,8 @@ var app2 = builder.AddProject<Projects.AspirePoc_App2>("app2")
     .WaitFor(kafka)
     .WithEnvironment("Kafka__BootstrapServers", "localhost:9092");
 
+var producer = builder.AddProject<Projects.AspirePoc_Producer>("producer")
+    .WithReference(app1)
+    .WaitFor(app1);
+
 builder.Build().Run();

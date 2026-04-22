@@ -11,6 +11,10 @@
   <Folder Name="/apphost/src/">
     <Project Path="apphost/src/AspirePoc.AppHost.csproj" />
   </Folder>
+  <Folder Name="/producer/" />
+  <Folder Name="/producer/src/">
+    <Project Path="producer/src/AspirePoc.Producer.csproj" />
+  </Folder>
   <Folder Name="/reference-service/" />
   <Folder Name="/reference-service/src/">
     <Project Path="reference-service/src/AspirePoc.ReferenceService.csproj" />

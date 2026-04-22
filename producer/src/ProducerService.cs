@@ -1,0 +1,80 @@
+using System.Net.Http.Json;
+using System.Text.Json;
+
+namespace AspirePoc.Producer;
+
+public sealed class ProducerService : BackgroundService
+{
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+
+    private readonly HttpClient http;
+    private readonly BatchGenerator generator;
+    private readonly ILogger<ProducerService> logger;
+    private readonly TimeSpan interval;
+    private readonly int batchSize;
+
+    public ProducerService(
+        IHttpClientFactory httpClientFactory,
+        BatchGenerator generator,
+        IConfiguration config,
+        ILogger<ProducerService> logger)
+    {
+        this.http = httpClientFactory.CreateClient("app1");
+        this.generator = generator;
+        this.logger = logger;
+        this.interval = TimeSpan.FromSeconds(config.GetValue("Producer:IntervalSeconds", 10));
+        this.batchSize = config.GetValue("Producer:BatchSize", 5);
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        logger.LogInformation(
+            "Producer starting: interval={Interval}, batchSize={BatchSize}",
+            interval, batchSize);
+
+        try
+        {
+            await SendBatchAsync(stoppingToken);
+
+            using var timer = new PeriodicTimer(interval);
+            while (await timer.WaitForNextTickAsync(stoppingToken))
+            {
+                await SendBatchAsync(stoppingToken);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private async Task SendBatchAsync(CancellationToken ct)
+    {
+        var batch = generator.Generate(batchSize);
+
+        try
+        {
+            var response = await http.PostAsJsonAsync("/process", batch, JsonOptions, ct);
+
+            if (response.IsSuccessStatusCode)
+            {
+                logger.LogInformation(
+                    "Posted batch {BatchId} with {Count} transactions",
+                    batch.BatchId, batch.Transactions.Count);
+            }
+            else
+            {
+                logger.LogWarning(
+                    "app1 returned {Status} for batch {BatchId}",
+                    response.StatusCode, batch.BatchId);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to post batch {BatchId}", batch.BatchId);
+        }
+    }
+}

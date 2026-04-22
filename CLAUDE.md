@@ -4,7 +4,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repo status
 
-Phase 3c complete: app2 is now a Kafka consumer closing the ETL loop.
+Phase 3d complete: the ETL now runs hands-off. `AspirePoc.Producer` is a .NET worker (`BackgroundService`) that generates synthetic batches on a `PeriodicTimer` and POSTs them to app1's `/process` endpoint. The graph self-drives — no manual curl needed.
+
+- Producer resolves app1 via Aspire service discovery (`http://app1` → actual endpoint at runtime)
+- Customer pool is weighted toward `C-100`/`C-101` so cache hits are visible in the dashboard and Redpanda Console consumer-group lag; `C-999` shows up occasionally to keep the unknown-customer (skip-warn) path exercised
+- Amounts are generated from integer cents to keep every decimal exact, matching the project's money discipline
+- Configurable via `Producer:IntervalSeconds` (default 10) and `Producer:BatchSize` (default 5). First batch fires immediately on startup, subsequent batches every interval.
+- `Batch` and `Transaction` are **duplicated** in producer/src/ (not shared with app1 — per the no-shared-code rule; in a real split-repo world, producer would be a third-party system entirely)
+
+AppHost: producer has `WithReference(app1)` and `WaitFor(app1)` so it starts only after app1 is ready.
+
+## Previous phase status
+
+Phase 3c: app2 is now a Kafka consumer closing the ETL loop.
 
 - `KafkaConsumerService` (BackgroundService) subscribes to `transactions.enriched`, reads messages with `AutoOffsetReset.Earliest` so restarts replay the topic from the beginning
 - Deserializes each `EnrichedTransaction`, hands it to `TransactionProcessor`

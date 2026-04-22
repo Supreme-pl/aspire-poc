@@ -4,6 +4,7 @@
     <ProjectReference Include="..\..\app1\src\AspirePoc.App1.csproj" />
     <ProjectReference Include="..\..\app2\src\AspirePoc.App2.csproj" />
     <ProjectReference Include="..\..\reference-service\src\AspirePoc.ReferenceService.csproj" />
+    <ProjectReference Include="..\..\producer\src\AspirePoc.Producer.csproj" />
   </ItemGroup>
 
   <ItemGroup>
