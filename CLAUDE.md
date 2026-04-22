@@ -4,6 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repo status
 
+Phase 6 complete: `.github/workflows/ci.yml` drives integration tests in GitHub Actions. Triggered via `workflow_dispatch` only for now (manual from the Actions tab) — push/PR triggers come after the pipeline proves stable. The workflow runs on `ubuntu-latest` with Docker preinstalled, pins `.NET 10.0.201`, restores, builds Release, runs `dotnet test` on the integration-tests project, and uploads TRX test results always plus any `/tmp/aspire-poc-test-*/` CSV outputs on failure for postmortem.
+
+## Previous phase status
+
 Phase 5 complete: one end-to-end integration test using `Aspire.Hosting.Testing`, spinning up the whole AppHost (Redis + RedisInsight + Redpanda + Redpanda Console + reference-service + app1 + app2) and asserting a known batch flows through the pipeline with correct discount calculation landing in a per-test-run CSV file. Producer is disabled in tests via `--Producer:Enabled=false`. Topic and consumer group are uniquified per run via `--Kafka:Topic` and `--Kafka:ConsumerGroup` args to prevent cross-test interference. Runtime ~20–90s depending on whether container images are already pulled.
 
 ## Running tests
@@ -180,7 +184,7 @@ Same no-shared-code rule applies: the indexer gets its own copies of `EnrichedTr
 
 Project name convention: `AspirePoc.<Component>`. The generated `Projects.AspirePoc_App1` type (used in `AppHost.cs` as `builder.AddProject<Projects.AspirePoc_App1>("app1")`) is produced automatically by the Aspire SDK from the AppHost's `<ProjectReference>` — dots in project names become underscores in the generated type.
 
-CI workflow will live at `../.github/workflows/aspire-poc.yml` at the UNIVERSAL repo root with a `paths: aspire-poc/**` filter, so only changes under this folder trigger it.
+CI workflow lives at `.github/workflows/ci.yml` at the repo root. The repo is the standalone `Supreme-pl/aspire-poc` on GitHub (not a sub-folder of a larger Sandbox monorepo — the original plan of folding the POC into a Sandbox monorepo was abandoned when the user set up a dedicated repo). No `paths` filter is needed because the whole repo is the POC.
 
 ## Stack
 
