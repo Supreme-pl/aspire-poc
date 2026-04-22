@@ -28,11 +28,6 @@ public class EtlHappyPathTests
 
         var appHost = await DistributedApplicationTestingBuilder.CreateAsync<Projects.AspirePoc_AppHost>(hostArgs, ct);
 
-        appHost.Services.ConfigureHttpClientDefaults(clientBuilder =>
-        {
-            clientBuilder.AddStandardResilienceHandler();
-        });
-
         await using var app = await appHost.BuildAsync(ct).WaitAsync(StartupTimeout, ct);
         await app.StartAsync(ct).WaitAsync(StartupTimeout, ct);
 
