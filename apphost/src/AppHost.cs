@@ -4,6 +4,7 @@ var topic = builder.Configuration["Kafka:Topic"] ?? "transactions.enriched";
 var consumerGroup = builder.Configuration["Kafka:ConsumerGroup"] ?? "app2-consumer-group";
 var outputPath = builder.Configuration["Output:Path"];
 var producerEnabled = !string.Equals(builder.Configuration["Producer:Enabled"], "false", StringComparison.OrdinalIgnoreCase);
+var consoleEnabled = !string.Equals(builder.Configuration["Console:Enabled"], "false", StringComparison.OrdinalIgnoreCase);
 
 var cache = builder.AddRedis("cache")
     .WithRedisInsight();
@@ -14,16 +15,20 @@ var kafka = builder.AddContainer("redpanda", "redpandadata/redpanda", "v24.2.4")
         "--mode", "dev-container",
         "--smp", "1",
         "--overprovisioned",
+        "--default-log-level", "warn",
         "--kafka-addr", "internal://0.0.0.0:9093,external://0.0.0.0:9092",
         "--advertise-kafka-addr", "internal://redpanda:9093,external://127.0.0.1:9092")
     .WithEndpoint(port: 9092, targetPort: 9092, name: "kafka-external")
     .WithHttpEndpoint(targetPort: 9644, name: "admin")
     .WithHttpHealthCheck(path: "/v1/status/ready", endpointName: "admin");
 
-var kafkaConsole = builder.AddContainer("redpanda-console", "redpandadata/console", "v2.7.0")
-    .WithEnvironment("KAFKA_BROKERS", "redpanda:9093")
-    .WithHttpEndpoint(targetPort: 8080, name: "http")
-    .WaitFor(kafka);
+if (consoleEnabled)
+{
+    builder.AddContainer("redpanda-console", "redpandadata/console", "v2.7.0")
+        .WithEnvironment("KAFKA_BROKERS", "redpanda:9093")
+        .WithHttpEndpoint(targetPort: 8080, name: "http")
+        .WaitFor(kafka);
+}
 
 var referenceService = builder.AddProject<Projects.AspirePoc_ReferenceService>("reference-service");
 

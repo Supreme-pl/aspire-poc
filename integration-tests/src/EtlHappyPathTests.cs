@@ -22,7 +22,8 @@ public class EtlHappyPathTests
             $"--Kafka:Topic=test-topic-{runId}",
             $"--Kafka:ConsumerGroup=test-group-{runId}",
             $"--Output:Path={outputPath}",
-            "--Producer:Enabled=false"
+            "--Producer:Enabled=false",
+            "--Console:Enabled=false"
         };
 
         var appHost = await DistributedApplicationTestingBuilder.CreateAsync<Projects.AspirePoc_AppHost>(hostArgs, ct);
