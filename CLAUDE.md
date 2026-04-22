@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repo status
 
-Phase 6 complete: `.github/workflows/ci.yml` drives integration tests in GitHub Actions. Triggered via `workflow_dispatch` only for now (manual from the Actions tab) — push/PR triggers come after the pipeline proves stable. The workflow runs on `ubuntu-latest` with Docker preinstalled, pins `.NET 10.0.201`, restores, builds Release, runs `dotnet test` on the integration-tests project, and uploads TRX test results always plus any `/tmp/aspire-poc-test-*/` CSV outputs on failure for postmortem.
+Phase 6 complete: `.github/workflows/ci.yml` drives integration tests in GitHub Actions. Triggered via `workflow_dispatch` only for now (manual from the Actions tab) — push/PR triggers come after the pipeline proves stable. The workflow runs on `ubuntu-latest` with Docker preinstalled, pins `.NET 10.0.201`, restores, builds Release, runs `dotnet test` on the integration-tests project with `TMPDIR` explicitly pinned to `${{ runner.temp }}` so the test's `Path.GetTempPath()` and the artifact-upload step agree on where `aspire-poc-test-*` folders land. Publishes a human-readable test report via `dorny/test-reporter@v1` (check run visible on the run summary, parses the TRX results automatically), uploads the raw TRX test results always, and uploads CSV outputs on failure for postmortem.
+
+Redpanda now runs with `--mode dev-container`, required for containerized Linux CI environments — without it, startup checks fail and Kafka never begins accepting connections, causing app1/app2 to flood logs with "Connection refused" from librdkafka's retry loop.
 
 ## Previous phase status
 
@@ -154,7 +156,7 @@ aspire-poc/
 ├── CLAUDE.md
 ├── plan_from_gpt.md
 ├── apphost/src/            AspirePoc.AppHost (Aspire.AppHost.Sdk)
-├── service-defaults/src/   AspirePoc.ServiceDefaults (shared OTel, health, service discovery)
+├── shared-observability/src/   AspirePoc.SharedObservability (shared OTel, health, service discovery)
 ├── app1/src/               AspirePoc.App1 (ASP.NET Core empty)
 ├── app2/src/               AspirePoc.App2 (ASP.NET Core empty)
 └── reference-service/src/  AspirePoc.ReferenceService (customer master data fixture + API)
@@ -180,7 +182,7 @@ Once tests + CI are green, a new service will be added that consumes the `transa
 
 Same no-shared-code rule applies: the indexer gets its own copies of `EnrichedTransaction` and any calc logic it needs.
 
-**No shared-code project.** Domain types needed by both app1 and app2 (e.g. `Money`, transaction DTOs) are duplicated in each app rather than extracted — this mirrors the real-world scenario where the two apps live in separate repos. `ServiceDefaults` and `ReferenceService` are shared infrastructure and do not fall under this rule.
+**No shared-code project.** Domain types needed by both app1 and app2 (e.g. `Money`, transaction DTOs) are duplicated in each app rather than extracted — this mirrors the real-world scenario where the two apps live in separate repos. `SharedObservability` and `ReferenceService` are shared infrastructure and do not fall under this rule.
 
 Project name convention: `AspirePoc.<Component>`. The generated `Projects.AspirePoc_App1` type (used in `AppHost.cs` as `builder.AddProject<Projects.AspirePoc_App1>("app1")`) is produced automatically by the Aspire SDK from the AppHost's `<ProjectReference>` — dots in project names become underscores in the generated type.
 
@@ -217,7 +219,7 @@ These are enforced both during implementation and during any code review pass:
 Validate at system boundaries only — HTTP ingress (`/process` in app1), Kafka consume in app2, reference-service responses. Internal code trusts its callers. No defensive null-checks on values the type system already guarantees.
 
 ### Logging and tracing
-Rely on OpenTelemetry via Aspire defaults (structured logs, traces, metrics land in the dashboard automatically for .NET projects that register `AddServiceDefaults`). Do not roll custom logging abstractions. Use semantic log scopes (`using var scope = logger.BeginScope(...)`) for correlating multi-step operations.
+Rely on OpenTelemetry via Aspire defaults (structured logs, traces, metrics land in the dashboard automatically for .NET projects that register `AddSharedObservability`). Do not roll custom logging abstractions. Use semantic log scopes (`using var scope = logger.BeginScope(...)`) for correlating multi-step operations.
 
 ### Error handling
 Let exceptions propagate unless you have a concrete recovery strategy. Do not wrap in try/catch to "log and rethrow" — OTel already captures the exception with the trace. Validate input at boundaries (400 on bad HTTP request, DLQ on bad Kafka message) rather than scattering guards.

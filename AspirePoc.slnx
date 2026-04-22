@@ -23,8 +23,8 @@
   <Folder Name="/reference-service/src/">
     <Project Path="reference-service/src/AspirePoc.ReferenceService.csproj" />
   </Folder>
-  <Folder Name="/service-defaults/" />
-  <Folder Name="/service-defaults/src/">
-    <Project Path="service-defaults/src/AspirePoc.ServiceDefaults.csproj" />
+  <Folder Name="/shared-observability/" />
+  <Folder Name="/shared-observability/src/">
+    <Project Path="shared-observability/src/AspirePoc.SharedObservability.csproj" />
   </Folder>
 </Solution>

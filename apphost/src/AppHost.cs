@@ -11,6 +11,7 @@ var cache = builder.AddRedis("cache")
 var kafka = builder.AddContainer("redpanda", "redpandadata/redpanda", "v24.2.4")
     .WithArgs(
         "redpanda", "start",
+        "--mode", "dev-container",
         "--smp", "1",
         "--overprovisioned",
         "--kafka-addr", "internal://0.0.0.0:9093,external://0.0.0.0:9092",

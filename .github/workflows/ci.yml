@@ -3,6 +3,10 @@ name: CI
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+  checks: write
+
 jobs:
   integration-tests:
     name: Integration tests
@@ -25,6 +29,8 @@ jobs:
         run: dotnet build AspirePoc.slnx --no-restore --configuration Release
 
       - name: Run integration tests
+        env:
+          TMPDIR: ${{ runner.temp }}
         run: |
           dotnet test integration-tests/src/AspirePoc.IntegrationTests.csproj \
             --no-build \
@@ -33,7 +39,16 @@ jobs:
             --logger "console;verbosity=normal" \
             --results-directory ${{ runner.temp }}/test-results
 
-      - name: Upload test results
+      - name: Publish test report
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Integration tests (report)
+          path: ${{ runner.temp }}/test-results/**/*.trx
+          reporter: dotnet-trx
+          fail-on-error: false
+
+      - name: Upload raw test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -46,6 +61,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: csv-outputs
-          path: /tmp/aspire-poc-test-*/**
+          path: ${{ runner.temp }}/aspire-poc-test-*/**
           retention-days: 7
           if-no-files-found: ignore
