@@ -28,10 +28,16 @@ public sealed class EnrichmentHandler
 
     public async Task<int> ProcessAsync(Batch batch, CancellationToken ct)
     {
+        logger.LogInformation(
+            "Processing batch {BatchId} with {Count} transactions",
+            batch.BatchId, batch.Transactions.Count);
+
         var published = 0;
 
         foreach (var transaction in batch.Transactions)
         {
+            logger.LogInformation("Producing transaction {TransactionId}", transaction.TransactionId);
+
             var customer = await customers.GetAsync(transaction.CustomerId, ct);
             if (customer is null)
             {

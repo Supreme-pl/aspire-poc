@@ -16,7 +16,10 @@ builder.Services.AddSingleton<IProducer<string, string>>(sp =>
     var config = new ProducerConfig
     {
         BootstrapServers = builder.Configuration["Kafka:BootstrapServers"],
-        AllowAutoCreateTopics = true
+        AllowAutoCreateTopics = true,
+        MessageTimeoutMs = 15000,
+        RequestTimeoutMs = 10000,
+        MessageSendMaxRetries = 3
     };
     return new ProducerBuilder<string, string>(config)
         .SetLogHandler((_, _) => { })
