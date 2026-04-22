@@ -5,9 +5,22 @@ var consumerGroup = builder.Configuration["Kafka:ConsumerGroup"] ?? "app2-consum
 var outputPath = builder.Configuration["Output:Path"];
 var producerEnabled = !string.Equals(builder.Configuration["Producer:Enabled"], "false", StringComparison.OrdinalIgnoreCase);
 var consoleEnabled = !string.Equals(builder.Configuration["Console:Enabled"], "false", StringComparison.OrdinalIgnoreCase);
+var redisInsightEnabled = !string.Equals(builder.Configuration["RedisInsight:Enabled"], "false", StringComparison.OrdinalIgnoreCase);
 
-var cache = builder.AddRedis("cache")
-    .WithRedisInsight();
+var cacheBuilder = builder.AddRedis("cache");
+if (redisInsightEnabled)
+{
+    cacheBuilder.WithRedisInsight();
+}
+var cache = cacheBuilder;
+
+var kafkaAddr = consoleEnabled
+    ? "internal://0.0.0.0:9093,external://0.0.0.0:9092"
+    : "0.0.0.0:9092";
+
+var advertiseAddr = consoleEnabled
+    ? "internal://redpanda:9093,external://127.0.0.1:9092"
+    : "127.0.0.1:9092";
 
 var kafka = builder.AddContainer("redpanda", "redpandadata/redpanda", "v24.2.4")
     .WithArgs(
@@ -16,8 +29,8 @@ var kafka = builder.AddContainer("redpanda", "redpandadata/redpanda", "v24.2.4")
         "--smp", "1",
         "--overprovisioned",
         "--default-log-level", "warn",
-        "--kafka-addr", "internal://0.0.0.0:9093,external://0.0.0.0:9092",
-        "--advertise-kafka-addr", "internal://redpanda:9093,external://127.0.0.1:9092")
+        "--kafka-addr", kafkaAddr,
+        "--advertise-kafka-addr", advertiseAddr)
     .WithEndpoint(port: 9092, targetPort: 9092, name: "kafka-external")
     .WithHttpEndpoint(targetPort: 9644, name: "admin")
     .WithHttpHealthCheck(path: "/v1/status/ready", endpointName: "admin");
