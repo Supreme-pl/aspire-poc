@@ -36,6 +36,8 @@ public class EtlHappyPathTests
 
         using var httpClient = app.CreateHttpClient("app1");
 
+        await WaitForEndpointAsync(httpClient, "/hello", StartupTimeout, ct);
+
         var batch = new
         {
             batchId = $"B-test-{runId}",
@@ -55,6 +57,37 @@ public class EtlHappyPathTests
         Assert.StartsWith("transactionId,customerId,", lines[0]);
         Assert.Contains("T-001,C-100,ACME Corp,premium,100.00,0.15,85.00,USD", lines);
         Assert.Contains("T-002,C-101,Globex Ltd,standard,200.00,0.05,190.00,GBP", lines);
+    }
+
+    private static async Task WaitForEndpointAsync(
+        HttpClient client,
+        string path,
+        TimeSpan timeout,
+        CancellationToken ct)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        while (DateTime.UtcNow < deadline)
+        {
+            try
+            {
+                using var response = await client.GetAsync(path, ct);
+                if (response.IsSuccessStatusCode)
+                {
+                    return;
+                }
+            }
+            catch (HttpRequestException)
+            {
+            }
+            catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+            {
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(500), ct);
+        }
+
+        throw new TimeoutException(
+            $"Endpoint {path} did not become ready within {timeout.TotalSeconds}s");
     }
 
     private static async Task<string[]> PollForCsvLines(
