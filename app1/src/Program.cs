@@ -15,7 +15,7 @@ builder.Services.AddSingleton<IProducer<string, string>>(sp =>
 {
     var config = new ProducerConfig
     {
-        BootstrapServers = builder.Configuration["Kafka:BootstrapServers"],
+        BootstrapServers = builder.Configuration.GetConnectionString("kafka"),
         AllowAutoCreateTopics = true,
         MessageTimeoutMs = 15000,
         RequestTimeoutMs = 10000,

@@ -23,7 +23,7 @@ public class EtlHappyPathTests
             $"--Kafka:ConsumerGroup=test-group-{runId}",
             $"--Output:Path={outputPath}",
             "--Producer:Enabled=false",
-            "--Console:Enabled=false",
+            "--KafkaUI:Enabled=false",
             "--RedisInsight:Enabled=false"
         };
 

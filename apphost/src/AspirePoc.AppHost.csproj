@@ -8,6 +8,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.Kafka" Version="13.2.3" />
     <PackageReference Include="Aspire.Hosting.Redis" Version="13.2.2" />
   </ItemGroup>
 

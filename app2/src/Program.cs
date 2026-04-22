@@ -9,7 +9,7 @@ builder.Services.AddSingleton<IConsumer<string, string>>(sp =>
 {
     var config = new ConsumerConfig
     {
-        BootstrapServers = builder.Configuration["Kafka:BootstrapServers"],
+        BootstrapServers = builder.Configuration.GetConnectionString("kafka"),
         GroupId = builder.Configuration["Kafka:ConsumerGroup"] ?? "app2-consumer-group",
         AutoOffsetReset = AutoOffsetReset.Earliest,
         EnableAutoCommit = true,
