@@ -24,7 +24,8 @@ public class EtlHappyPathTests
             $"--Output:Path={outputPath}",
             "--Producer:Enabled=false",
             "--KafkaUI:Enabled=false",
-            "--RedisInsight:Enabled=false"
+            "--RedisInsight:Enabled=false",
+            "--OpenSearch:Enabled=false"
         };
 
         var appHost = await DistributedApplicationTestingBuilder.CreateAsync<Projects.AspirePoc_AppHost>(hostArgs, ct);
