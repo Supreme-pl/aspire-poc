@@ -1,13 +1,24 @@
+using Microsoft.Extensions.Configuration;
+
+const string KafkaTopicKey = "Kafka:Topic";
+const string KafkaConsumerGroupKey = "Kafka:ConsumerGroup";
+const string OutputPathKey = "Output:Path";
+const string ProducerEnabledKey = "Producer:Enabled";
+const string KafkaUiEnabledKey = "KafkaUI:Enabled";
+const string RedisInsightEnabledKey = "RedisInsight:Enabled";
+const string OpenSearchEnabledKey = "OpenSearch:Enabled";
+const string OpenSearchDashboardsEnabledKey = "OpenSearchDashboards:Enabled";
+
 var builder = DistributedApplication.CreateBuilder(args);
 
-var topic = builder.Configuration["Kafka:Topic"] ?? "transactions.enriched";
-var consumerGroup = builder.Configuration["Kafka:ConsumerGroup"] ?? "app2-consumer-group";
-var outputPath = builder.Configuration["Output:Path"];
-var producerEnabled = !string.Equals(builder.Configuration["Producer:Enabled"], "false", StringComparison.OrdinalIgnoreCase);
-var kafkaUiEnabled = !string.Equals(builder.Configuration["KafkaUI:Enabled"], "false", StringComparison.OrdinalIgnoreCase);
-var redisInsightEnabled = !string.Equals(builder.Configuration["RedisInsight:Enabled"], "false", StringComparison.OrdinalIgnoreCase);
-var opensearchEnabled = !string.Equals(builder.Configuration["OpenSearch:Enabled"], "false", StringComparison.OrdinalIgnoreCase);
-var opensearchDashboardsEnabled = !string.Equals(builder.Configuration["OpenSearchDashboards:Enabled"], "false", StringComparison.OrdinalIgnoreCase);
+var topic = builder.Configuration[KafkaTopicKey] ?? "transactions.enriched";
+var consumerGroup = builder.Configuration[KafkaConsumerGroupKey] ?? "app2-consumer-group";
+var outputPath = builder.Configuration[OutputPathKey];
+var producerEnabled = ReadFlag(builder.Configuration, ProducerEnabledKey);
+var kafkaUiEnabled = ReadFlag(builder.Configuration, KafkaUiEnabledKey);
+var redisInsightEnabled = ReadFlag(builder.Configuration, RedisInsightEnabledKey);
+var opensearchEnabled = ReadFlag(builder.Configuration, OpenSearchEnabledKey);
+var opensearchDashboardsEnabled = ReadFlag(builder.Configuration, OpenSearchDashboardsEnabledKey);
 
 var cacheBuilder = builder.AddRedis("cache");
 if (redisInsightEnabled)
@@ -80,3 +91,10 @@ if (producerEnabled)
 }
 
 builder.Build().Run();
+
+static bool ReadFlag(IConfiguration config, string key, bool @default = true)
+{
+    var value = config[key];
+    if (string.IsNullOrEmpty(value)) return @default;
+    return !string.Equals(value, "false", StringComparison.OrdinalIgnoreCase);
+}

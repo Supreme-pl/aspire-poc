@@ -9,8 +9,8 @@ builder.Services.AddSingleton<IConsumer<string, string>>(sp =>
 {
     var config = new ConsumerConfig
     {
-        BootstrapServers = builder.Configuration.GetConnectionString("kafka"),
-        GroupId = builder.Configuration["Kafka:ConsumerGroup"] ?? "app2-consumer-group",
+        BootstrapServers = builder.Configuration.GetConnectionString(Constants.KafkaConnectionName),
+        GroupId = builder.Configuration[Constants.KafkaConsumerGroupConfigKey] ?? Constants.DefaultConsumerGroup,
         AutoOffsetReset = AutoOffsetReset.Earliest,
         EnableAutoCommit = true,
         TopicMetadataRefreshIntervalMs = 1000
@@ -20,7 +20,7 @@ builder.Services.AddSingleton<IConsumer<string, string>>(sp =>
         .Build();
 });
 
-builder.Services.AddSingleton<TransactionProcessor>();
+builder.Services.AddSingleton<ITransactionSink, CsvTransactionSink>();
 builder.Services.AddHostedService<KafkaConsumerService>();
 
 var app = builder.Build();
@@ -28,5 +28,9 @@ var app = builder.Build();
 app.MapDefaultEndpoints();
 
 app.MapGet("/hello", () => "app2 is alive");
+
+CsvTransactionSink.ClearOutputFileForFreshRun(
+    app.Configuration,
+    app.Services.GetRequiredService<ILogger<CsvTransactionSink>>());
 
 app.Run();

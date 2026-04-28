@@ -2,35 +2,24 @@ using System.Globalization;
 
 namespace AspirePoc.App2;
 
-public sealed class TransactionProcessor
+public sealed class CsvTransactionSink : ITransactionSink
 {
     private const string CsvHeader =
         "transactionId,customerId,customerName,customerTier,amount,discountRate,finalAmount,currency";
 
     private readonly string outputPath;
-    private readonly ILogger<TransactionProcessor> logger;
 
-    public TransactionProcessor(IConfiguration config, ILogger<TransactionProcessor> logger)
+    public CsvTransactionSink(IConfiguration config, ILogger<CsvTransactionSink> logger)
     {
         this.outputPath = ResolveOutputPath(config);
-        this.logger = logger;
 
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
-
-        if (File.Exists(outputPath))
-        {
-            File.Delete(outputPath);
-            logger.LogInformation("Cleared existing transaction output file {Path}", outputPath);
-        }
 
         logger.LogInformation("Transaction output file: {Path}", outputPath);
     }
 
-    public async Task ProcessAsync(EnrichedTransaction transaction, CancellationToken ct)
+    public async Task WriteAsync(EnrichedTransaction transaction, Money discounted, CancellationToken ct)
     {
-        var original = new Money(transaction.Amount, transaction.Currency);
-        var discounted = original.ApplyDiscount(transaction.DiscountRate);
-
         var isNewFile = !File.Exists(outputPath);
         var row = FormatRow(transaction, discounted);
         var content = isNewFile
@@ -38,6 +27,16 @@ public sealed class TransactionProcessor
             : row + Environment.NewLine;
 
         await File.AppendAllTextAsync(outputPath, content, ct);
+    }
+
+    public static void ClearOutputFileForFreshRun(IConfiguration config, ILogger logger)
+    {
+        var path = ResolveOutputPath(config);
+        if (File.Exists(path))
+        {
+            File.Delete(path);
+            logger.LogInformation("Cleared existing transaction output file {Path}", path);
+        }
     }
 
     private static string FormatRow(EnrichedTransaction t, Money discounted) =>
@@ -57,7 +56,7 @@ public sealed class TransactionProcessor
             : value;
 
     private static string ResolveOutputPath(IConfiguration config) =>
-        config["Output:Path"] is { Length: > 0 } configured
+        config[Constants.OutputPathConfigKey] is { Length: > 0 } configured
             ? configured
             : Path.Combine(Path.GetTempPath(), "aspire-poc", "transactions.csv");
 }

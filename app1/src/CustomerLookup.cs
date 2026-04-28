@@ -5,7 +5,7 @@ using StackExchange.Redis;
 
 namespace AspirePoc.App1;
 
-public sealed class CustomerLookup
+public sealed class CustomerLookup : ICustomerLookup
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -19,7 +19,7 @@ public sealed class CustomerLookup
         ILogger<CustomerLookup> logger)
     {
         this.redis = redis;
-        this.referenceClient = httpClientFactory.CreateClient("reference-service");
+        this.referenceClient = httpClientFactory.CreateClient(Constants.ReferenceServiceClientName);
         this.logger = logger;
     }
 
@@ -50,5 +50,5 @@ public sealed class CustomerLookup
         return customer;
     }
 
-    private static string CacheKey(string customerId) => $"customer:{customerId}";
+    private static string CacheKey(string customerId) => $"{Constants.CustomerCacheKeyPrefix}{customerId}";
 }

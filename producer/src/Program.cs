@@ -4,7 +4,7 @@ var builder = Host.CreateApplicationBuilder(args);
 
 builder.AddServiceDefaults();
 
-builder.Services.AddHttpClient("app1", client =>
+builder.Services.AddHttpClient(Constants.App1ClientName, client =>
 {
     client.BaseAddress = new Uri("http://app1");
 });

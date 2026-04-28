@@ -9,13 +9,13 @@ public sealed class EnrichmentHandler
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    private readonly CustomerLookup customers;
+    private readonly ICustomerLookup customers;
     private readonly IProducer<string, string> producer;
     private readonly ILogger<EnrichmentHandler> logger;
     private readonly string topic;
 
     public EnrichmentHandler(
-        CustomerLookup customers,
+        ICustomerLookup customers,
         IProducer<string, string> producer,
         IConfiguration config,
         ILogger<EnrichmentHandler> logger)
@@ -23,7 +23,7 @@ public sealed class EnrichmentHandler
         this.customers = customers;
         this.producer = producer;
         this.logger = logger;
-        this.topic = config["Kafka:Topic"] ?? DefaultTopic;
+        this.topic = config[Constants.KafkaTopicConfigKey] ?? DefaultTopic;
     }
 
     public async Task<int> ProcessAsync(Batch batch, CancellationToken ct)

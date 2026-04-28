@@ -19,11 +19,11 @@ public sealed class ProducerService : BackgroundService
         IConfiguration config,
         ILogger<ProducerService> logger)
     {
-        this.http = httpClientFactory.CreateClient("app1");
+        this.http = httpClientFactory.CreateClient(Constants.App1ClientName);
         this.generator = generator;
         this.logger = logger;
-        this.interval = TimeSpan.FromSeconds(config.GetValue("Producer:IntervalSeconds", 10));
-        this.batchSize = config.GetValue("Producer:BatchSize", 5);
+        this.interval = TimeSpan.FromSeconds(config.GetValue(Constants.IntervalConfigKey, 10));
+        this.batchSize = config.GetValue(Constants.BatchSizeConfigKey, 5);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -51,30 +51,19 @@ public sealed class ProducerService : BackgroundService
     {
         var batch = generator.Generate(batchSize);
 
-        try
-        {
-            var response = await http.PostAsJsonAsync("/process", batch, JsonOptions, ct);
+        var response = await http.PostAsJsonAsync(Constants.ProcessEndpoint, batch, JsonOptions, ct);
 
-            if (response.IsSuccessStatusCode)
-            {
-                logger.LogInformation(
-                    "Posted batch {BatchId} with {Count} transactions",
-                    batch.BatchId, batch.Transactions.Count);
-            }
-            else
-            {
-                logger.LogWarning(
-                    "app1 returned {Status} for batch {BatchId}",
-                    response.StatusCode, batch.BatchId);
-            }
-        }
-        catch (OperationCanceledException)
+        if (response.IsSuccessStatusCode)
         {
-            throw;
+            logger.LogInformation(
+                "Posted batch {BatchId} with {Count} transactions",
+                batch.BatchId, batch.Transactions.Count);
         }
-        catch (Exception ex)
+        else
         {
-            logger.LogError(ex, "Failed to post batch {BatchId}", batch.BatchId);
+            logger.LogWarning(
+                "app1 returned {Status} for batch {BatchId}",
+                response.StatusCode, batch.BatchId);
         }
     }
 }

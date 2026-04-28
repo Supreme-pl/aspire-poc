@@ -16,7 +16,7 @@ public sealed class OpenSearchIndexer
         ILogger<OpenSearchIndexer> logger)
     {
         this.client = client;
-        this.indexName = config["OpenSearch:Index"] ?? DefaultIndexName;
+        this.indexName = config[Constants.OpenSearchIndexConfigKey] ?? DefaultIndexName;
         this.logger = logger;
     }
 
@@ -29,11 +29,8 @@ public sealed class OpenSearchIndexer
 
         if (!response.IsValid)
         {
-            logger.LogWarning(
-                "Failed to index transaction {TransactionId}: {Error}",
-                transaction.TransactionId,
-                response.ServerError?.Error?.Reason ?? response.DebugInformation);
-            return;
+            throw new InvalidOperationException(
+                $"Failed to index transaction {transaction.TransactionId}: {response.ServerError?.Error?.Reason ?? response.DebugInformation}");
         }
 
         logger.LogDebug(

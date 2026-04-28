@@ -4,9 +4,9 @@ using Confluent.Kafka;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
-builder.AddRedisClient("cache");
+builder.AddRedisClient(Constants.CacheConnectionName);
 
-builder.Services.AddHttpClient("reference-service", client =>
+builder.Services.AddHttpClient(Constants.ReferenceServiceClientName, client =>
 {
     client.BaseAddress = new Uri("http://reference-service");
 });
@@ -26,7 +26,7 @@ builder.Services.AddSingleton<IProducer<string, string>>(sp =>
         .Build();
 });
 
-builder.Services.AddSingleton<CustomerLookup>();
+builder.Services.AddSingleton<ICustomerLookup, CustomerLookup>();
 builder.Services.AddSingleton<EnrichmentHandler>();
 
 var app = builder.Build();

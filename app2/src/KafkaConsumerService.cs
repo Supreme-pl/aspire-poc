@@ -10,20 +10,20 @@ public sealed class KafkaConsumerService : BackgroundService
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly IConsumer<string, string> consumer;
-    private readonly TransactionProcessor processor;
+    private readonly ITransactionSink sink;
     private readonly ILogger<KafkaConsumerService> logger;
     private readonly string topic;
 
     public KafkaConsumerService(
         IConsumer<string, string> consumer,
-        TransactionProcessor processor,
+        ITransactionSink sink,
         IConfiguration config,
         ILogger<KafkaConsumerService> logger)
     {
         this.consumer = consumer;
-        this.processor = processor;
+        this.sink = sink;
         this.logger = logger;
-        this.topic = config["Kafka:Topic"] ?? DefaultTopic;
+        this.topic = config[Constants.KafkaTopicConfigKey] ?? DefaultTopic;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -35,36 +35,36 @@ public sealed class KafkaConsumerService : BackgroundService
         {
             while (!stoppingToken.IsCancellationRequested)
             {
+                ConsumeResult<string, string>? result;
                 try
                 {
-                    var result = consumer.Consume(stoppingToken);
-                    if (result?.Message?.Value is null)
-                    {
-                        continue;
-                    }
+                    result = consumer.Consume(stoppingToken);
+                }
+                catch (ConsumeException ex) when (ex.Error.Code == ErrorCode.UnknownTopicOrPart)
+                {
+                    logger.LogDebug("Topic {Topic} not yet available, retrying", topic);
+                    continue;
+                }
 
-                    var transaction = JsonSerializer.Deserialize<EnrichedTransaction>(result.Message.Value, JsonOptions);
-                    if (transaction is null)
-                    {
-                        logger.LogWarning("Skipping message with empty payload at offset {Offset}", result.Offset);
-                        continue;
-                    }
+                if (result?.Message?.Value is null)
+                {
+                    continue;
+                }
 
-                    await processor.ProcessAsync(transaction, stoppingToken);
-                }
-                catch (OperationCanceledException)
+                var transaction = JsonSerializer.Deserialize<EnrichedTransaction>(result.Message.Value, JsonOptions);
+                if (transaction is null)
                 {
-                    break;
+                    logger.LogWarning("Skipping message with empty payload at offset {Offset}", result.Offset);
+                    continue;
                 }
-                catch (ConsumeException ex)
-                {
-                    logger.LogError(ex, "Kafka consume error: {Reason}", ex.Error.Reason);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Failed to process Kafka message");
-                }
+
+                var money = new Money(transaction.Amount, transaction.Currency);
+                var discounted = money.ApplyDiscount(transaction.DiscountRate);
+                await sink.WriteAsync(transaction, discounted, stoppingToken);
             }
+        }
+        catch (OperationCanceledException)
+        {
         }
         finally
         {

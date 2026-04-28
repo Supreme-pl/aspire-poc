@@ -10,8 +10,8 @@ builder.Services.AddSingleton<IConsumer<string, string>>(sp =>
 {
     var config = new ConsumerConfig
     {
-        BootstrapServers = builder.Configuration.GetConnectionString("kafka"),
-        GroupId = builder.Configuration["Kafka:ConsumerGroup"] ?? "indexer-consumer-group",
+        BootstrapServers = builder.Configuration.GetConnectionString(Constants.KafkaConnectionName),
+        GroupId = builder.Configuration["Kafka:ConsumerGroup"] ?? Constants.DefaultConsumerGroup,
         AutoOffsetReset = AutoOffsetReset.Earliest,
         EnableAutoCommit = true,
         TopicMetadataRefreshIntervalMs = 1000
@@ -23,7 +23,7 @@ builder.Services.AddSingleton<IConsumer<string, string>>(sp =>
 
 builder.Services.AddSingleton<IOpenSearchClient>(sp =>
 {
-    var endpoint = builder.Configuration.GetConnectionString("opensearch")
+    var endpoint = builder.Configuration.GetConnectionString(Constants.OpenSearchConnectionName)
         ?? throw new InvalidOperationException("OpenSearch connection string is not configured");
     var settings = new ConnectionSettings(new Uri(endpoint));
     return new OpenSearchClient(settings);
