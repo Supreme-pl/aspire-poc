@@ -27,11 +27,11 @@ Configuration overrides are passed to `DistributedApplicationTestingBuilder.Crea
 Each test:
 - Creates a unique `runId` (8-char GUID)
 - Computes a unique temp output folder path
-- Passes `Kafka:Topic`, `Kafka:ConsumerGroup`, `Output:Path`, and `Producer:Enabled=false` as args
-- Waits for `app1` and `app2` resources to reach `Healthy` state via `app.ResourceNotifications.WaitForResourceHealthyAsync`
+- Passes `Kafka:Topic`, `Kafka:ConsumerGroup`, `Output:Path`, and `Gch:Enabled=false` as args
+- Waits for `pre-processor` and `royalty-calculation` resources to reach `Healthy` state via `app.ResourceNotifications.WaitForResourceHealthyAsync`
 - POSTs a test batch, polls the CSV file until expected lines appear (fixed timeout, no fixed sleeps per architect plan)
 
-AppHost was refactored to read these config keys and propagate them to child projects via `WithEnvironment`, and to conditionally add the producer only when enabled. Default values preserve the original "dotnet run" experience.
+AppHost was refactored to read these config keys and propagate them to child projects via `WithEnvironment`, and to conditionally add the gch only when enabled. Default values preserve the original "dotnet run" experience.
 
 ## Previous phase status
 
@@ -135,25 +135,25 @@ Deviations from `plan_from_gpt.md` agreed with the user so far. Each row notes s
 Streaming ETL, event-driven, HTTP ingest:
 
 ```
-Mock producer ──interval HTTP POST──> app1 ──publish──> Redpanda ──> app2 ──> output.csv
+Mock gch ──interval HTTP POST──> pre-processor ──publish──> Redpanda ──> royalty-calculation ──> output.csv
                                        │
                                        ├──cache-aside──> Redis
                                        │
-                                       └──on miss──> reference-service
+                                       └──on miss──> amp
 ```
 
 Resources in the Aspire graph:
-- `producer` — .NET project, generates synthetic batches on interval, pushes to app1 via HTTP
-- `app1` — .NET minimal API, exposes `POST /process`, enriches with reference data (cache-aside via Redis), publishes enriched events to Redpanda
-- `app2` — .NET minimal API/consumer, consumes from Redpanda, calculates, writes CSV
-- `reference-service` — .NET minimal API, serves customer/reference master data from local fixture (source of truth for enrichment)
-- `cache` — Redis container, cache-aside populated by app1
-- `redpanda` — Kafka-wire-compatible broker between app1 and app2
+- `gch` — .NET project, generates synthetic batches on interval, pushes to pre-processor via HTTP
+- `pre-processor` — .NET minimal API, exposes `POST /process`, enriches with reference data (cache-aside via Redis), publishes enriched events to Redpanda
+- `royalty-calculation` — .NET minimal API/consumer, consumes from Redpanda, calculates, writes CSV
+- `amp` — .NET minimal API, serves customer/reference master data from local fixture (source of truth for enrichment)
+- `cache` — Redis container, cache-aside populated by pre-processor
+- `redpanda` — Kafka-wire-compatible broker between pre-processor and royalty-calculation
 - `frontend` — Angular + TypeScript app, demonstrates Aspire dashboard value end-to-end (trace from UI click → backend pipeline)
 
 Apps are **Aspire-agnostic**: they read connection details from `IConfiguration` and run standalone with `dotnet run` given the right env vars. The AppHost is a thin orchestration layer on top — not a dependency of the apps themselves.
 
-Redis caches reference data (e.g. `customer:C-123` → customer master), not producer payloads. Producer payloads flow through the pipeline but are never cached.
+Redis caches reference data (e.g. `customer:C-123` → customer master), not gch payloads. Gch payloads flow through the pipeline but are never cached.
 
 ## Folder layout
 
@@ -165,16 +165,16 @@ aspire-poc/
 ├── plan_from_gpt.md
 ├── apphost/src/            AspirePoc.AppHost (Aspire.AppHost.Sdk)
 ├── shared-observability/src/   AspirePoc.SharedObservability (shared OTel, health, service discovery)
-├── app1/src/               AspirePoc.App1 (ASP.NET Core empty)
-├── app2/src/               AspirePoc.App2 (ASP.NET Core empty)
-└── reference-service/src/  AspirePoc.ReferenceService (customer master data fixture + API)
+├── pre-processor/src/      AspirePoc.PreProcessor (ASP.NET Core empty)
+├── royalty-calculation/src/ AspirePoc.RoyaltyCalculation (ASP.NET Core empty)
+└── amp/src/                AspirePoc.Amp (customer master data fixture + API)
 ```
 
 Planned additions (later phases):
 - `integration-tests/src/` + `integration-tests/fixtures/` — Phase 5 (in progress)
 - `.github/workflows/aspire-poc.yml` — Phase 6 CI
 - `indexer/src/` — Phase 7, new Kafka consumer that indexes `transactions.enriched` into OpenSearch (see "OpenSearch integration" below)
-- `app1/tests/`, `app2/tests/`, `reference-service/tests/` — per-project unit tests (no date)
+- `pre-processor/tests/`, `royalty-calculation/tests/`, `amp/tests/` — per-project unit tests (no date)
 
 **Frontend is no longer planned.** The Jira ticket suggested "Consider... frontend app as well to show Aspire features". Since the user applies the rule "do not use Jira as source of requirements" and the plan body never mentions a frontend, frontend work is cancelled.
 
@@ -192,7 +192,7 @@ Same no-shared-code rule applies: the indexer gets its own copies of `EnrichedTr
 
 **No shared-code project.** Domain types needed by both app1 and app2 (e.g. `Money`, transaction DTOs) are duplicated in each app rather than extracted — this mirrors the real-world scenario where the two apps live in separate repos. `SharedObservability` and `ReferenceService` are shared infrastructure and do not fall under this rule.
 
-Project name convention: `AspirePoc.<Component>`. The generated `Projects.AspirePoc_App1` type (used in `AppHost.cs` as `builder.AddProject<Projects.AspirePoc_App1>("app1")`) is produced automatically by the Aspire SDK from the AppHost's `<ProjectReference>` — dots in project names become underscores in the generated type.
+Project name convention: `AspirePoc.<Component>`. The generated `Projects.AspirePoc_PreProcessor` type (used in `AppHost.cs` as `builder.AddProject<Projects.AspirePoc_PreProcessor>("pre-processor")`) is produced automatically by the Aspire SDK from the AppHost's `<ProjectReference>` — dots in project names become underscores in the generated type.
 
 CI workflow lives at `.github/workflows/ci.yml` at the repo root. The repo is the standalone `Supreme-pl/aspire-poc` on GitHub (not a sub-folder of a larger Sandbox monorepo — the original plan of folding the POC into a Sandbox monorepo was abandoned when the user set up a dedicated repo). No `paths` filter is needed because the whole repo is the POC.
 

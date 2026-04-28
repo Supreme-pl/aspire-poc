@@ -3,7 +3,7 @@ using Microsoft.Extensions.Configuration;
 const string KafkaTopicKey = "Kafka:Topic";
 const string KafkaConsumerGroupKey = "Kafka:ConsumerGroup";
 const string OutputPathKey = "Output:Path";
-const string ProducerEnabledKey = "Producer:Enabled";
+const string GchEnabledKey = "Gch:Enabled";
 const string KafkaUiEnabledKey = "KafkaUI:Enabled";
 const string RedisInsightEnabledKey = "RedisInsight:Enabled";
 const string OpenSearchEnabledKey = "OpenSearch:Enabled";
@@ -12,9 +12,9 @@ const string OpenSearchDashboardsEnabledKey = "OpenSearchDashboards:Enabled";
 var builder = DistributedApplication.CreateBuilder(args);
 
 var topic = builder.Configuration[KafkaTopicKey] ?? "transactions.enriched";
-var consumerGroup = builder.Configuration[KafkaConsumerGroupKey] ?? "app2-consumer-group";
+var consumerGroup = builder.Configuration[KafkaConsumerGroupKey] ?? "royalty-calculation-group";
 var outputPath = builder.Configuration[OutputPathKey];
-var producerEnabled = ReadFlag(builder.Configuration, ProducerEnabledKey);
+var gchEnabled = ReadFlag(builder.Configuration, GchEnabledKey);
 var kafkaUiEnabled = ReadFlag(builder.Configuration, KafkaUiEnabledKey);
 var redisInsightEnabled = ReadFlag(builder.Configuration, RedisInsightEnabledKey);
 var opensearchEnabled = ReadFlag(builder.Configuration, OpenSearchEnabledKey);
@@ -34,18 +34,18 @@ if (kafkaUiEnabled)
 }
 var kafka = kafkaBuilder;
 
-var referenceService = builder.AddProject<Projects.AspirePoc_ReferenceService>("reference-service");
+var amp = builder.AddProject<Projects.AspirePoc_Amp>("amp");
 
-var app1 = builder.AddProject<Projects.AspirePoc_App1>("app1")
+var preProcessor = builder.AddProject<Projects.AspirePoc_PreProcessor>("pre-processor")
     .WithReference(cache)
     .WithReference(kafka)
-    .WithReference(referenceService)
+    .WithReference(amp)
     .WaitFor(cache)
     .WaitFor(kafka)
-    .WaitFor(referenceService)
+    .WaitFor(amp)
     .WithEnvironment("Kafka__Topic", topic);
 
-var app2 = builder.AddProject<Projects.AspirePoc_App2>("app2")
+var royaltyCalculation = builder.AddProject<Projects.AspirePoc_RoyaltyCalculation>("royalty-calculation")
     .WithReference(kafka)
     .WaitFor(kafka)
     .WithEnvironment("Kafka__Topic", topic)
@@ -53,7 +53,7 @@ var app2 = builder.AddProject<Projects.AspirePoc_App2>("app2")
 
 if (!string.IsNullOrEmpty(outputPath))
 {
-    app2.WithEnvironment("Output__Path", outputPath);
+    royaltyCalculation.WithEnvironment("Output__Path", outputPath);
 }
 
 if (opensearchEnabled)
@@ -83,11 +83,11 @@ if (opensearchEnabled)
         .WithEnvironment("ConnectionStrings__opensearch", "http://localhost:9200");
 }
 
-if (producerEnabled)
+if (gchEnabled)
 {
-    builder.AddProject<Projects.AspirePoc_Producer>("producer")
-        .WithReference(app1)
-        .WaitFor(app1);
+    builder.AddProject<Projects.AspirePoc_Gch>("gch")
+        .WithReference(preProcessor)
+        .WaitFor(preProcessor);
 }
 
 builder.Build().Run();

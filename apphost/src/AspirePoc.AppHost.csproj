@@ -1,10 +1,10 @@
 <Project Sdk="Aspire.AppHost.Sdk/13.2.2">
 
   <ItemGroup>
-    <ProjectReference Include="..\..\app1\src\AspirePoc.App1.csproj" />
-    <ProjectReference Include="..\..\app2\src\AspirePoc.App2.csproj" />
-    <ProjectReference Include="..\..\reference-service\src\AspirePoc.ReferenceService.csproj" />
-    <ProjectReference Include="..\..\producer\src\AspirePoc.Producer.csproj" />
+    <ProjectReference Include="..\..\pre-processor\src\AspirePoc.PreProcessor.csproj" />
+    <ProjectReference Include="..\..\royalty-calculation\src\AspirePoc.RoyaltyCalculation.csproj" />
+    <ProjectReference Include="..\..\amp\src\AspirePoc.Amp.csproj" />
+    <ProjectReference Include="..\..\gch\src\AspirePoc.Gch.csproj" />
     <ProjectReference Include="..\..\indexer\src\AspirePoc.Indexer.csproj" />
   </ItemGroup>
 

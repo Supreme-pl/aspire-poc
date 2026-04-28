@@ -1,15 +1,15 @@
 <Solution>
-  <Folder Name="/app1/" />
-  <Folder Name="/app1/src/">
-    <Project Path="app1/src/AspirePoc.App1.csproj" />
-  </Folder>
-  <Folder Name="/app2/" />
-  <Folder Name="/app2/src/">
-    <Project Path="app2/src/AspirePoc.App2.csproj" />
+  <Folder Name="/amp/" />
+  <Folder Name="/amp/src/">
+    <Project Path="amp/src/AspirePoc.Amp.csproj" />
   </Folder>
   <Folder Name="/apphost/" />
   <Folder Name="/apphost/src/">
     <Project Path="apphost/src/AspirePoc.AppHost.csproj" />
+  </Folder>
+  <Folder Name="/gch/" />
+  <Folder Name="/gch/src/">
+    <Project Path="gch/src/AspirePoc.Gch.csproj" />
   </Folder>
   <Folder Name="/indexer/" />
   <Folder Name="/indexer/src/">
@@ -19,13 +19,13 @@
   <Folder Name="/integration-tests/src/">
     <Project Path="integration-tests/src/AspirePoc.IntegrationTests.csproj" />
   </Folder>
-  <Folder Name="/producer/" />
-  <Folder Name="/producer/src/">
-    <Project Path="producer/src/AspirePoc.Producer.csproj" />
+  <Folder Name="/pre-processor/" />
+  <Folder Name="/pre-processor/src/">
+    <Project Path="pre-processor/src/AspirePoc.PreProcessor.csproj" />
   </Folder>
-  <Folder Name="/reference-service/" />
-  <Folder Name="/reference-service/src/">
-    <Project Path="reference-service/src/AspirePoc.ReferenceService.csproj" />
+  <Folder Name="/royalty-calculation/" />
+  <Folder Name="/royalty-calculation/src/">
+    <Project Path="royalty-calculation/src/AspirePoc.RoyaltyCalculation.csproj" />
   </Folder>
   <Folder Name="/shared-observability/" />
   <Folder Name="/shared-observability/src/">

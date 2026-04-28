@@ -22,7 +22,7 @@ public class EtlHappyPathTests
             $"--Kafka:Topic=test-topic-{runId}",
             $"--Kafka:ConsumerGroup=test-group-{runId}",
             $"--Output:Path={outputPath}",
-            "--Producer:Enabled=false",
+            "--Gch:Enabled=false",
             "--KafkaUI:Enabled=false",
             "--RedisInsight:Enabled=false",
             "--OpenSearch:Enabled=false"
@@ -33,10 +33,10 @@ public class EtlHappyPathTests
         await using var app = await appHost.BuildAsync(ct).WaitAsync(StartupTimeout, ct);
         await app.StartAsync(ct).WaitAsync(StartupTimeout, ct);
 
-        await app.ResourceNotifications.WaitForResourceHealthyAsync("app1", ct).WaitAsync(StartupTimeout, ct);
-        await app.ResourceNotifications.WaitForResourceHealthyAsync("app2", ct).WaitAsync(StartupTimeout, ct);
+        await app.ResourceNotifications.WaitForResourceHealthyAsync("pre-processor", ct).WaitAsync(StartupTimeout, ct);
+        await app.ResourceNotifications.WaitForResourceHealthyAsync("royalty-calculation", ct).WaitAsync(StartupTimeout, ct);
 
-        using var httpClient = app.CreateHttpClient("app1");
+        using var httpClient = app.CreateHttpClient("pre-processor");
 
         await WaitForEndpointAsync(httpClient, "/hello", StartupTimeout, ct);
 
